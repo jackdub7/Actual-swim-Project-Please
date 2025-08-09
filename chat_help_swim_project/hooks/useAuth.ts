@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase, getCurrentUser, getUserProfile, createUserProfile } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { Platform } from 'react-native';
 
 interface UserProfile {
   id: string;
@@ -20,11 +21,13 @@ export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Configure Google Sign-In
-    GoogleSignin.configure({
-      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-      offlineAccess: true,
-    });
+    // Configure Google Sign-In for native platforms
+    if (Platform.OS !== 'web') {
+      GoogleSignin.configure({
+        webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+        offlineAccess: true,
+      });
+    }
 
     // Check initial auth state
     checkAuthState();
@@ -96,6 +99,21 @@ export const useAuth = () => {
   const signInWithGoogle = async () => {
     try {
       setIsLoading(true);
+
+      if (Platform.OS === 'web') {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: process.env.EXPO_PUBLIC_REDIRECT_URL,
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        return { success: true };
+      }
       
       // Check if device supports Google Play Services
       await GoogleSignin.hasPlayServices();
